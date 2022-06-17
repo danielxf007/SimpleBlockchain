@@ -119,6 +119,8 @@ class App:
     def init_blockchain(self):
         self.create_wallet('Satoshi')
         self.create_miner('Satoshi')
+        self.mining_block()
+
     def interact(self):
         while True:
             try:
@@ -146,5 +148,5 @@ class App:
 
 app = App()
 app.create_commands()
-
+app.init_blockchain()
 app.interact()
