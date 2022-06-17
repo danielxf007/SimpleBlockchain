@@ -108,6 +108,7 @@ class App:
         coin_base_tx = miner.create_coin_base_tx(self.valid_tx_db, txs)
         txs+=[coin_base_tx]+txs
         hashed_txs = self.hash_txs(txs)
+        self.valid_tx_db.add_tx(hashed_txs[0], coin_base_tx)
         difficulty = random.randint(1, 4)
         miner.create_block(self.last_block_hash, hashed_txs, difficulty)
         block = miner.mining_block()
