@@ -1,3 +1,6 @@
+from transactions import UTXO
+
+
 class MerkleDB:
 
     def __init__(self):
@@ -37,8 +40,19 @@ class TXDB:
     def add_tx(self, tx_hash, tx):
         self.txs[tx_hash] = tx
     
+    def add_txs(self, txs, txs_hash):
+        for i in range(len(txs)):
+            self.txs[txs_hash[i]] = txs[i]
+    
     def get_tx(self, tx_hash):
         return self.txs[tx_hash]
+    
+    def remove_tx(self, tx_hash):
+        self.txs.pop(tx_hash, None)
+    
+    def remove_txs(self, txs_hash):
+        for tx_hash in txs_hash:
+            self.remove_tx(tx_hash)
     
     def get_n_txs(self, n):
         if len(self.txs) == 0:
@@ -50,22 +64,48 @@ class TXDB:
                 break
         return txs
     
-    def get_n_txs(self):
+    def n_txs(self):
         return len(self.txs)
+
+class AvailableUTXODB:
+
+    def __init__(self):
+        self.data = []
+    
+    def add_utxo(self, tx_id, utxo_index):
+        self.data.append({
+            'tx_id': tx_id,
+            'utxo_index': utxo_index})
+    
+    def add_utxos(self, tx_id, utxos):
+        for utxo_index in range(len(utxos)):
+            self.add_utxo(tx_id, utxo_index)
+    
+    def remove_utxo(self, tx_id, utxo_index):
+        for element in self.data:
+            if element['tx_id'] == tx_id and element['utxo_index'] == utxo_index:
+                self.data.remove(element)
+                break
+    
+    def remove_utxos(self, tx_in_arr):
+        for tx_in in tx_in_arr:
+            self.remove_utxo(tx_in.tx_id, tx_in.utxo_index)
+            
 
 class UTXODB:
 
     def __init__(self):
         self.data = {}
     
-    def add_utxos(self, pk, tx_id, utxo_arr):
-        if not pk in self.data.keys():
-            self.data[pk] = []
+    def add_utxos(self, tx_id, utxo_arr):
         for utxo_index in range(len(utxo_arr)):
-            self.data[pk].append({
-                'tx_id': tx_id,
-                'utxo_index': utxo_index
-                })
+            utxo: UTXO = utxo_arr[utxo_index]
+            if not utxo.pk in self.data.keys():
+                self.data[utxo.pk] = []
+            self.data[utxo.pk].append({
+            'tx_id': tx_id,
+            'utxo_index': utxo_index
+            })
     
     def remove_utxos(self, pk, tx_in_arr):
         for tx_in in tx_in_arr:
@@ -75,4 +115,6 @@ class UTXODB:
                     break
     
     def get_utxos(self, pk):
+        if not pk in self.data.keys():
+            return []
         return self.data[pk]
