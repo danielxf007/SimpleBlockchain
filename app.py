@@ -18,7 +18,6 @@ class App:
         self.miners = {}
         self.names_file_path = '/home/daniel/Documents/simple_blockchain/names.txt'
         self.n_names = 18238
-        self.pending_tx_db = TXDB()
         self.pending_txs = []
         self.valid_tx_db = TXDB()
         self.utxo_db = UTXODB()
@@ -59,7 +58,7 @@ class App:
     def create_wallet(self, user_name):
         if not user_name in self.wallets.keys():
             pk = hashlib.sha256(user_name.encode()).hexdigest()
-            wallet = Wallet(pk, self.valid_tx_db.txs)
+            wallet = Wallet(pk, self.valid_tx_db.txs.copy())
             self.wallets[user_name] = wallet
             print(f"{user_name} your wallet was created the address is: {pk}")
         else:
@@ -120,7 +119,7 @@ class App:
             print(f"Error {from_wallet} you don't have enough balance")
     
     def make_rdm_txs(self, n):
-        wallet:Wallet = self.wallets['Satoshi']
+        wallet = self.wallets['Satoshi']
         balance = wallet.get_wallet_balance()
         if balance >= self.util.btc_to_satoshi(10**-5):
             targets = list(self.wallets.keys())
@@ -214,8 +213,8 @@ class App:
         for key in self.wallets.keys():
             wallet:Wallet = self.wallets[key]
             utxos = self.utxo_db.get_utxos(wallet.pk)
-            wallet.tx_db.txs = self.valid_tx_db.txs
-            wallet.available_utxo_db.data = utxos
+            wallet.tx_db.txs = self.valid_tx_db.txs.copy()
+            wallet.available_utxo_db.data = utxos.copy()
         
     def mining_block(self):
         miner_keys = list(self.miners.keys())
@@ -233,13 +232,15 @@ class App:
         self.valid_tx_db.add_tx(coin_base_hash, coin_base_tx)
         txs = [coin_base_tx]+txs
         hashed_txs = [coin_base_hash]+hashed_txs
-        difficulty = random.randint(1, 8)
+        difficulty = random.randint(1, 16)
         miner.create_block(self.last_block_hash, hashed_txs, difficulty)
         block = miner.mining_block()
         self.last_block_hash = hashlib.sha256(pickle.dumps(block)).hexdigest()
         self.blockchain[self.last_block_hash] = block
         for i in range(len(txs)):
             self.utxo_db.add_utxos(hashed_txs[i], txs[i].get_utxo_arr())
+        for i in range(1, len(txs)):
+            self.utxo_db.remove_utxos(txs[i].creator, txs[i].get_tx_in_arr())
         self.update_wallets()
         self.pending_txs.clear()
         self.blockchain_history.append({'miner': miner_key, 'block': self.last_block_hash})
