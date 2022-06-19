@@ -13,10 +13,9 @@ class Miner:
         self.current_block = None
         self.merkle_struct = None
         self.pk = pk
-        self.used_nonces = []
     
     def n_txs_request(self):
-        random.randint(10, 100)
+        return random.randint(10, 100)
     
     def validate_tx(self, valid_tx_db, tx):
         valid = True
@@ -45,20 +44,20 @@ class Miner:
 
     def create_coin_base_tx(self, valid_tx_db, txs):
         value = 0
+        util = Util()
         if txs:
             for tx in txs:
                 input_total_value = self.get_inputs_value(valid_tx_db, tx.tx_in_arr)
                 utxo_total_value = self.get_utxos_value(tx.utxo_arr)
-                value += (input_total_value-utxo_total_value)
+                value+=(input_total_value-utxo_total_value)
+                value+=util.btc_to_satoshi(random.randint(1, 10))
         else:
-            util = Util()
-            value = util.btc_to_satoshi(random.randint(1, 100))
-        return TX([], [UTXO(value, self.pk)])
+            value = util.btc_to_satoshi(random.randint(50, 100))
+        return TX(self.pk, [], [UTXO(0, self.pk), UTXO(value, self.pk)], True)
     
     def create_block(self, prev_hash, hashed_txs, difficulty):
         merkle_tree = MerkleTree()
         self.merkle_struct = merkle_tree.create(hashed_txs)
-        self.used_nonces = []
         header = BlockHeader(
             prev_hash,
             self.merkle_struct['root'],
@@ -70,7 +69,7 @@ class Miner:
         n_zeros = 0
         stop = False
         for n in hashed_header:
-            nibble = f"int(n, 16):0{4}b"
+            nibble = f"{int(n, 16):0{4}b}"
             for bit in nibble:
                 if bit == '0':
                     n_zeros+=1
@@ -82,15 +81,13 @@ class Miner:
         return n_zeros == difficulty
 
     def mining_block(self):
-        nonce = random.randint()
+        nonce = 0
         while True:
-            while nonce in self.used_nonces:
-                nonce = random.randint()
-            self.used_nonces.append(nonce)
             self.current_block.header.set_nonce(nonce)
             hashed_header = hashlib.sha256(pickle.dumps(self.current_block.header)).hexdigest()
             if self.has_enough_zeros(hashed_header, self.current_block.header.difficulty):
                 break
+            nonce+=1
         return self.current_block
 
 
