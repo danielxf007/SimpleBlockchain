@@ -2,7 +2,7 @@ class UTXO:
 
     def __init__(self, value, pk):
         self.value = value
-        self.p2k = pk
+        self.pk = pk
     
     def p2k(self, pk):
         return self.pk == pk
@@ -16,10 +16,11 @@ class TXIn:
 
 class TX:
 
-    def __init__(self, creator, tx_in_arr, utxo_arr):
+    def __init__(self, creator, tx_in_arr, utxo_arr, coin_base=False):
         self.creator = creator
         self.tx_in_arr = tx_in_arr
         self.utxo_arr = utxo_arr
+        self.coin_base = coin_base
     
     def get_tx_in_arr(self):
         return self.tx_in_arr
