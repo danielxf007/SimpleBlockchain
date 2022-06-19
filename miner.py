@@ -50,7 +50,7 @@ class Miner:
                 input_total_value = self.get_inputs_value(valid_tx_db, tx.tx_in_arr)
                 utxo_total_value = self.get_utxos_value(tx.utxo_arr)
                 value+=(input_total_value-utxo_total_value)
-                value+=util.btc_to_satoshi(random.randint(1, 10))
+            value+=util.btc_to_satoshi(random.randint(1, 10))
         else:
             value = util.btc_to_satoshi(random.randint(50, 100))
         return TX(self.pk, [], [UTXO(0, self.pk), UTXO(value, self.pk)], True)
@@ -78,7 +78,7 @@ class Miner:
                     break
             if stop:
                 break
-        return n_zeros == difficulty
+        return n_zeros == difficulty         
 
     def mining_block(self):
         nonce = 0
