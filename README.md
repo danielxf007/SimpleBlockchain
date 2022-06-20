@@ -5,4 +5,5 @@ This program is a simple simulation of a blockchain, users can make trasactions 
 ![alt text](./commands.png)
 ## Note:
 You can see the commands anytime using the command: --help
+
 --transfer has the next arguments From_User To_user Amount Fee
