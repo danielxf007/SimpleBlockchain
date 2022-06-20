@@ -5,7 +5,7 @@ This program is a simple simulation of a blockchain, users can make trasactions 
 ![alt text](./commands.png)
 ## Note:
 
-Run the program using python3 app.py
+Run the program using **python3 app.py**
 
 You can see the commands anytime using the command: --help
 
