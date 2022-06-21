@@ -43,7 +43,9 @@ class App:
         self.commands.add_argument('--transfer_r', type=int, dest='n_r_txs',
                     help='Satoshi transfer random btc to random wallets')
         self.commands.add_argument('--miner', type=str, dest='miner_user',
-                    help='Allows your user to mine blocks')
+                    help='Allows your user to become a miner')
+        self.commands.add_argument('--miner_r', type=int, dest='n_r_miners',
+                    help='N random users will become miners')
         self.commands.add_argument('--list_miners', action='store_true',
                     help='Allows you to see all the miners')
         self.commands.add_argument('--mining', action='store_true',
@@ -141,6 +143,18 @@ class App:
         else:
             print(f"Error {user_name} can mine blocks already!")
     
+    def create_miner_r(self, n):
+        if n:
+            miner_keys = list(self.miners.keys())
+            users = list(self.wallets.keys())
+            candidates = list(filter(lambda user_name: not user_name in miner_keys, users))
+            n_available = n
+            while n_available and candidates:
+                choosen_user = candidates[random.randint(0, len(candidates)-1)]
+                self.create_miner(choosen_user)
+                n_available-=1
+                candidates.remove(choosen_user)
+
     def print_miners(self):
         for user_name in self.miners.keys():
             print(f"{user_name}")
@@ -272,6 +286,8 @@ class App:
                     self.make_rdm_txs(args.n_r_txs)
                 elif args.miner_user:
                     self.create_miner(args.miner_user)
+                elif args.n_r_miners:
+                    self.create_miner_r(args.n_r_miners)
                 elif args.list_miners:
                     self.print_miners()
                 elif args.mining:
