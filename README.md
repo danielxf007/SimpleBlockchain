@@ -8,6 +8,9 @@ This program is a simple simulation of a blockchain, users can make trasactions 
 ## Structure of a block:
 ![alt text](./block.png)
 
+#### Observations:
+The diffiulty is the number of 0's that the header's hash has.
+
 ## Note:
 
 Run the program using **python3 app.py**
