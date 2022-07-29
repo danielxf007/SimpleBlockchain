@@ -1,4 +1,6 @@
 __pychache__/
 app/__pychache__/
 core/__pychache__/
+core/data_bases/__pychache__/
+core/transactions/__pychache__/
 util/__pychache__/
