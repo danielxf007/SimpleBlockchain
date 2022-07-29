@@ -2,9 +2,21 @@
 
 This program is a simple simulation of a blockchain, you can interact with it using console commands
 
+## Notes:
+
 If you want to make transaction, then you must initialize the system
 
 Do not delete the file name.txt in data, it is used to create random wallets
+
+The miner decides randomly how many transactions they want to approve
+
+The transactions that were not approved are deleted and never happened
+
+The transaction fee changes everytime a block is added to the chain
+
+Run the program using **python3 main.py**
+
+You can see the commands anytime using the command: **--help**
 
 ## Commands:
 
@@ -57,10 +69,6 @@ If you want to know more about utxos visit: https://github.com/bitcoinbook/bitco
 
 ![alt text](./images/command_fee.png)
 
-### Note:
-
-The transaction fee changes everytime a block is added to the chain
-
 ## Transaction making
 
 ![alt text](./images/command_transfer.png)
@@ -86,9 +94,3 @@ The difficulty is the number of binary zeroes that must be found in a hash diges
 ## Getting the chain's history
 
 ![alt text](./images/command_history.png)
-
-## Note:
-
-Run the program using **python3 main.py**
-
-You can see the commands anytime using the command: **--help**
