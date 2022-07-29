@@ -58,6 +58,7 @@ class Frontend:
         """This method is used a program loop, it will parse each command and will end
         the loop when the exit command is given
         """
+        print("Welcome to Simple Blockchain")
         while True:
             try:
                 args = self.parser.parse_args(input('Enter Command: ').split())
@@ -103,8 +104,8 @@ class Frontend:
                     else:
                         print("Not enough arguments")
                 elif args.n_r_txs:
-                    messages = self.backend.make_r_txs(args.n_r_txs)
-                    print_messages(messages)
+                    message = self.backend.make_r_txs(args.n_r_txs)
+                    print(message)
                 elif args.mining:
                     message = self.backend.mining_block()
                     print(message)
