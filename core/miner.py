@@ -82,8 +82,8 @@ class Miner:
 
     def create_coinbase_tx(self, txs):
         """Creates a transaction which allows to transfer created bitcoin and collect
-        transaction fees which would be given to this miner, this transaction does not
-        generate change 
+        transaction fees which would be given to this miner, this transaction generates 
+        a unspent transaction input with value 0 and gets the whole value as a transfer
         
         Keyword arguments:
         tx_db -- it is the global database 
