@@ -71,6 +71,14 @@ The arguments are: the user name of the one making the transaction, the benefici
 
 ![alt text](./images/command_mining.png)
 
+## Displaying a block's data
+
+![alt text](./images/command_block1.png)
+
+### Note:
+
+The difficulty is the number of binary zeroes that must be found in a hash digest
+
 ## Getting the chain's history
 
 ![alt text](./images/command_history.png)
