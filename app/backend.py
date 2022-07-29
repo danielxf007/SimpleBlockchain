@@ -212,23 +212,24 @@ class Backend:
                 
 
     def make_r_txs(self, n_transactions):
-        """Creates random trasactions using the user Satohsi, finally it returns a list
-        of formatted messages
+        """Creates random trasactions using the user Satohsi and returns a message
+        indicating how many transactions were made by Satoshi
 
         Keyword arguments:
         n_transactions -- it is the random number of transactions to be made
         """
         targets = list(self.wallets.keys())
-        messages = []
+        n_completed = 0
         for _ in range(n_transactions):
             target = targets[random.randint(0, len(targets)-1)]
             amount = random.uniform(10**-3, 10**-4)
             change_target = "Satoshi"
-            success, message = self.transfer("Satoshi", target, amount, change_target).values()
-            messages.append(message)
+            success, _ = self.transfer("Satoshi", target, amount, change_target).values()
             if not success:
                 break
-        return messages
+            else:
+                n_completed+=1
+        return f"Satoshi made {n_completed} transactions"
 
     def choose_miner(self):
         """Returns a randomly selected miner who will mine the block"""
