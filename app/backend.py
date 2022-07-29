@@ -20,7 +20,7 @@ class Backend:
         """Initializes the class' attributes"""
         self.wallets = {}
         self.miners = {}
-        self.names_file_path = "names.txt"
+        self.names_file_path = "./data/names.txt"
         self.n_names = 18238
         self.pending_txs = []
         self.tx_db = TXDB()
