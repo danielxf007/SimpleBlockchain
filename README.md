@@ -2,7 +2,7 @@
 
 This program is a simple simulation of a blockchain, you can interact with it using console commands
 
-If you want to make transaction, you must initialize the system
+If you want to make transaction, then you must initialize the system
 
 Do not delete the file name.txt in data, it is used to create random wallets
 
