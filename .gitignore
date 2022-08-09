@@ -7,5 +7,5 @@ core/scripting/__pychache__/
 core/scripting/file_format.rst
 core/scripting/script.gram
 util/__pychache__/
-testing/scripting/assembler/__pychache__
+testing/scripting/assembler/__pychache__/
 testing/scripting/assembler/.pytest_cache
