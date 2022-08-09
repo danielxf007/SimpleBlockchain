@@ -9,3 +9,5 @@ core/scripting/script.gram
 util/__pychache__/
 testing/scripting/assembler/__pychache__/
 testing/scripting/assembler/.pytest_cache
+testing/scripting/vm/__pychache__/
+testing/scripting/vm/.pytest_cache
