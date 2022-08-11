@@ -18,6 +18,6 @@ class TestAssembler:
         with open(source_path, 'r') as source_file, open(target_path, 'wb') as target_file:
             source_file_content = source_file.read()
             result = self.assembler.assemble(source_file_content)
-            target_file.write(result["encoded_file_content"])
+            target_file.write(result["binary"])
         assert result["success"] == True
         assert filecmp.cmp(target_path, expected_path) == True
