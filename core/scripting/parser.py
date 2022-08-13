@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import token
 import re
 from core.scripting.definitions import LanguageKeywords, LanguageSymbols, TokenTypes, ParserErrorMssg
 
@@ -27,6 +26,7 @@ class PushDownAutomata:
         self.stack.clear()
 
 class Parser:
+
     def __init__(self):
         self.automata = PushDownAutomata()
         self.aux_automata = PushDownAutomata() # Holds special symbols
@@ -68,7 +68,7 @@ class Parser:
         return LanguageSymbols.WORD == symbol
     
     def get_decimal_int_token(self):
-        token = {"string": "", "type": TokenTypes.DECIMAL_INT}
+        token = {"string": "", "category": "constant", "type": TokenTypes.DECIMAL_INT}
         while not self.automata.empty():
             token["string"] = self.automata.pop() + token["string"]
         self.aux_automata.pop()
@@ -80,7 +80,7 @@ class Parser:
         return token
 
     def get_hexadecimal_int_token(self):
-        token = {"string": "", "type": TokenTypes.HEXADECIMAL_INT}
+        token = {"string": "", "category": "constant", "type": TokenTypes.HEXADECIMAL_INT}
         while not self.automata.empty():
             token["string"] = self.automata.pop() + token["string"]
         token["string"] = "0x" + token["string"]
@@ -92,7 +92,7 @@ class Parser:
         return token
 
     def get_string_token(self):
-        token = {"string": "", "type": TokenTypes.STRING}
+        token = {"string": "", "category": "constant", "type": TokenTypes.STRING}
         while not self.automata.empty():
             token["string"] = self.automata.pop() + token["string"]
         self.aux_automata.pop()
@@ -143,7 +143,7 @@ class Parser:
         return keyword_type
 
     def get_word_token(self):
-        token = {"string": "", "type": TokenTypes.UNRECOGNIZED}
+        token = {"string": "", "category": "constant", "type": TokenTypes.UNRECOGNIZED}
         while not self.automata.empty():
             token["string"] = self.automata.pop() + token["string"]
         token["type"] = self.get_keyword_type(token["string"])
@@ -153,17 +153,19 @@ class Parser:
         return token
 
     def parse(self, symbol_arr):
+        """Returns an array of tokens which hold information about the recognized
+        intruction
+
+        Keyword arguments:
+        symbol_arr -- it is an array of ascii symbols
+        """
         self.automata.reset()
         self.aux_automata.reset()
         symbol_arr_copy = symbol_arr + " "
-        n_tokens = 0
         tokens = []
         i = 0
         for i in range(len(symbol_arr_copy)):
             symbol = symbol_arr_copy[i]
-            print(f"Symbol: {symbol}")
-            print(f"Before Automata: {self.automata.stack}")
-            print(f"Before Aux Automata: {self.aux_automata.stack}")
             top_symbol = self.automata.get_top_symbol()
             aux_top_symbol = self.aux_automata.get_top_symbol()
             if not self.is_ascii(symbol):
@@ -246,11 +248,5 @@ class Parser:
                         tokens.append(self.get_word_token())
                     else:
                         self.automata.push(symbol)
-            print(f"After Automata: {self.automata.stack}")
-            print(f"After Aux Automata: {self.aux_automata.stack}")
-            if len(tokens) != n_tokens:
-                n_tokens = len(tokens)
-                print(f"Tokens {tokens}")
-        print(tokens)
         return tokens
 
