@@ -1,6 +1,6 @@
 class ByteSize:
     INT = 8
-    STRING = 4294967296
+    STRING = 4294967295
     OP_1_75 = 75
     OP_PUSHDATA1 = 255
     OP_PUSHDATA2 = 65535
@@ -44,8 +44,8 @@ class LanguageSymbols:
     STRING = "S" 
 
 class TokenTypes:
-    #Constants
     UNRECOGNIZED = -1
+    #Constants
     OP_0 = 0
     OP_FALSE = 1
     DECIMAL_INT = 2
@@ -87,7 +87,7 @@ class AssemblerErrorMssg:
     LEADING_ZEROES = "Decimal numbers cannot have leading zeroes"
     HEXADECIMAL = "0x must be followeb by hexadecimal numbers"
     MAX_INT_BYTES = "The maximun number of bytes for an integer is 4"
-    MAX_BYTES = "You cannot push more than 4294967296"
+    MAX_BYTES = "You cannot push more than 4294967296 bytes"
     COULD_NOT_ASSEMBLE = "Something went wrong and the file could not be assembled"
 
 class BTCVMErrorMssg:
