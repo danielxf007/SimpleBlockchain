@@ -7,7 +7,7 @@ class Assembler:
         self.parser = Parser()
         self.func_dict = {
         "constant": [None for i in range(24)], "stack": [], "data_manipulation": [],
-        "arithmetic": [], "cryptography": []}
+        "arithmetic": [None for i in range(26)], "cryptography": []}
         self.init_func_dict()
     
     def init_func_dict(self):
@@ -24,6 +24,8 @@ class Assembler:
         for token_type in range(TokenTypes.OP_2, TokenTypes.OP_16+1):
             offset = token_type-TokenTypes.OP_2
             self.func_dict["constant"][token_type] = self.get_enconde_push_2_to_16(offset)
+        self.func_dict["arithmetic"][TokenTypes.OP_ADD] = self.encode_add
+        self.func_dict["arithmetic"][TokenTypes.OP_NUMEQUAL] = self.encode_numequal
 
     def encode_push_empty(self, string):
         op_code = (0x00).to_bytes(length=1, byteorder='little', signed=False)
@@ -78,6 +80,14 @@ class Assembler:
             op_code = (0x52 + offset).to_bytes(length=1, byteorder='little', signed=False)
             return op_code
         return encode_push_2_to_16
+    
+    def encode_add(self, string):
+        op_code = (0x93).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
+    
+    def encode_numequal(self, string):
+        op_code = (0x9C).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
 
     def assemble(self, source_file_content):
         """Gets the content of the source file parsed and returns a dictionary with
