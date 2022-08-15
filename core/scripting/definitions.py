@@ -28,9 +28,18 @@ class LanguageKeywords:
     OP_14 = "(OP_14|op_14)"
     OP_15 = "(OP_15|op_15)"
     OP_16 = "(OP_16|op_16)"
+    #Flow Control
+    OP_VERIFY = "(OP_VERIFY|op_verify)"
+    #Stack
+    OP_DUP = "(OP_DUP|op_dup)"
+    #Bitwise Logic
+    OP_EQUALVERIFY = "(OP_EQUALVERIFY|op_equalverify)"
     #Arithmetic
     OP_ADD = "(OP_ADD|op_add)"
     OP_NUMEQUAL = "(OP_NUMEQUAL|op_numequal)"
+    #Cryptography
+    OP_HASH160 = "(OP_HASH160|op_hash160)"
+    OP_CHECKSIG = "(OP_CHECKSIG|op_checksig)"
 
 
 class LanguageSymbols:
@@ -74,9 +83,18 @@ class TokenTypes:
     OP_14 = 21
     OP_15 = 22
     OP_16 = 23
+    #Flow Control
+    OP_VERIFY = 8
+    #Stack
+    OP_DUP = 11
+    #Bitwise Logic
+    OP_EQUALVERIFY = 5
     #Arithmetic
     OP_ADD = 8
     OP_NUMEQUAL = 17
+    #Cryptography
+    OP_HASH160 = 3
+    OP_CHECKSIG = 6
 
 class ParserErrorMssg:
     LEADING_ZEROES = "Decimal numbers cannot have leading zeroes"
@@ -102,4 +120,6 @@ class BTCVMErrorMssg:
     COULD_NOT_PROCESS = "Something went wrong the binary could not be processed"
     NOT_ENOUGH_BYTES = "You are trying to push more bytes than the ones that are available"
     NOT_BTC = "The given binary was not of type btc"
-    BINARY_OP = "Binay operations need that the stack has at least two elements"
+    BINARY_OP = "needs that the stack has at least two elements"
+    UNARY_OP = "needs that the stack has at least one element"
+    FAILED_VERIFY = "failed verification"
