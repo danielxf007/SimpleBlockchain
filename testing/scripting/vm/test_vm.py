@@ -10,7 +10,7 @@ class TestBTCVM:
     assembler = Assembler()
     vm = BTCVM()
 
-    def test_one(self):
+    def test_equations(self):
         self.vm.reset()
         source_path = "./test_files/equations.s"
         expected_stack = [
@@ -24,6 +24,19 @@ class TestBTCVM:
             source_file_content = source_file.read()
             assemble_result = self.assembler.assemble(source_file_content)
             result = self.vm.process(assemble_result["binary"])
+        assert result["success"] == True
+        assert self.vm.get_stack() == expected_stack
+
+    def test_hash_puzzle(self):
+        self.vm.reset()
+        source_path = "./test_files/hash_puzzle.s"
+        expected_stack = []
+        result = {}
+        with open(source_path, 'r') as source_file:
+            source_file_content = source_file.read()
+            assemble_result = self.assembler.assemble(source_file_content)
+            result = self.vm.process(assemble_result["binary"])
+        print(result)
         assert result["success"] == True
         assert self.vm.get_stack() == expected_stack
 
