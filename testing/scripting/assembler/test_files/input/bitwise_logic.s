@@ -1,0 +1,2 @@
+OP_EQUALVERIFY 
+op_equalverify

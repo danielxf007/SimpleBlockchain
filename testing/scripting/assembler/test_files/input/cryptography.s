@@ -1,0 +1,4 @@
+OP_HASH160
+op_hash160
+OP_CHECKSIG
+op_checksig
