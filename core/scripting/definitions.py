@@ -7,6 +7,7 @@ class ByteSize:
     OP_PUSHDATA4 = 4294967295
 
 class LanguageKeywords:
+    #Constants
     OP_0 = "(OP_0|op_0)"
     OP_FALSE = "(OP_FALSE|op_false)"
     OP_1NEGATE = "(OP_1NEGATE|op_1negate)"
@@ -27,6 +28,10 @@ class LanguageKeywords:
     OP_14 = "(OP_14|op_14)"
     OP_15 = "(OP_15|op_15)"
     OP_16 = "(OP_16|op_16)"
+    #Arithmetic
+    OP_ADD = "(OP_ADD|op_add)"
+    OP_NUMEQUAL = "(OP_NUMEQUAL|op_numequal)"
+
 
 class LanguageSymbols:
     DECIMAL_DIGIT = "[0-9]"
@@ -69,6 +74,9 @@ class TokenTypes:
     OP_14 = 21
     OP_15 = 22
     OP_16 = 23
+    #Arithmetic
+    OP_ADD = 8
+    OP_NUMEQUAL = 17
 
 class ParserErrorMssg:
     LEADING_ZEROES = "Decimal numbers cannot have leading zeroes"
