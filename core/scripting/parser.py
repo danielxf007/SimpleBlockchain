@@ -140,7 +140,25 @@ class Parser:
             keyword_type = TokenTypes.OP_15
         elif re.match(LanguageKeywords.OP_16, string):
             keyword_type = TokenTypes.OP_16
-        return keyword_type 
+        return keyword_type
+    
+    def get_keyword_flow_control(self, string):
+        keyword_type = TokenTypes.UNRECOGNIZED
+        if re.match(LanguageKeywords.OP_VERIFY, string):
+            keyword_type = TokenTypes.OP_VERIFY
+        return keyword_type
+    
+    def get_keyword_stack(self, string):
+        keyword_type = TokenTypes.UNRECOGNIZED
+        if re.match(LanguageKeywords.OP_DUP, string):
+            keyword_type = TokenTypes.OP_DUP
+        return keyword_type
+    
+    def get_keyword_bitwise_logic(self, string):
+        keyword_type = TokenTypes.UNRECOGNIZED
+        if re.match(LanguageKeywords.OP_EQUALVERIFY, string):
+            keyword_type = TokenTypes.OP_EQUALVERIFY
+        return keyword_type        
 
     def get_keyword_arithmetic(self, string):
         keyword_type = TokenTypes.UNRECOGNIZED
@@ -150,13 +168,33 @@ class Parser:
             keyword_type = TokenTypes.OP_NUMEQUAL
         return keyword_type
 
+    def get_keyword_cryptography(self, string):
+        keyword_type = TokenTypes.UNRECOGNIZED
+        if re.match(LanguageKeywords.OP_HASH160, string):
+            keyword_type = TokenTypes.OP_HASH160
+        elif re.match(LanguageKeywords.OP_CHECKSIG, string):
+            keyword_type = TokenTypes.OP_CHECKSIG
+        return keyword_type
+
     def get_keyword_token(self, string):
         keyword_type = self.get_keyword_constant(string)
         if not keyword_type == TokenTypes.UNRECOGNIZED:
             return {"string": string , "category": "constant", "type": keyword_type}
+        keyword_type = self.get_keyword_flow_control(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "flow_control", "type": keyword_type}
+        keyword_type = self.get_keyword_stack(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "stack", "type": keyword_type}
+        keyword_type = self.get_keyword_bitwise_logic(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "bitwise_logic", "type": keyword_type}
         keyword_type = self.get_keyword_arithmetic(string)
         if not keyword_type == TokenTypes.UNRECOGNIZED:
             return {"string": string , "category": "arithmetic", "type": keyword_type}
+        keyword_type = self.get_keyword_cryptography(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "cryptography", "type": keyword_type}
 
     def get_word_token(self):
         string = ""
