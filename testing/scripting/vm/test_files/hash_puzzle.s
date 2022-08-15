@@ -1,0 +1,1 @@
+"Hello World!" OP_HASH160 "c5f3dbfc7aca5e6d050b1771b44b343bda99f1b4" OP_EQUALVERIFY
