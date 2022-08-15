@@ -98,7 +98,7 @@ class Parser:
         self.aux_automata.pop()
         return token
     
-    def get_keyword_type(self, string):
+    def get_keyword_constant(self, string):
         keyword_type = TokenTypes.UNRECOGNIZED
         if re.match(LanguageKeywords.OP_0, string):
             keyword_type = TokenTypes.OP_0
@@ -140,13 +140,29 @@ class Parser:
             keyword_type = TokenTypes.OP_15
         elif re.match(LanguageKeywords.OP_16, string):
             keyword_type = TokenTypes.OP_16
+        return keyword_type 
+
+    def get_keyword_arithmetic(self, string):
+        keyword_type = TokenTypes.UNRECOGNIZED
+        if re.match(LanguageKeywords.OP_ADD, string):
+            keyword_type = TokenTypes.OP_ADD
+        elif re.match(LanguageKeywords.OP_NUMEQUAL, string):
+            keyword_type = TokenTypes.OP_NUMEQUAL
         return keyword_type
 
+    def get_keyword_token(self, string):
+        keyword_type = self.get_keyword_constant(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "constant", "type": keyword_type}
+        keyword_type = self.get_keyword_arithmetic(string)
+        if not keyword_type == TokenTypes.UNRECOGNIZED:
+            return {"string": string , "category": "arithmetic", "type": keyword_type}
+
     def get_word_token(self):
-        token = {"string": "", "category": "constant", "type": TokenTypes.UNRECOGNIZED}
+        string = ""
         while not self.automata.empty():
-            token["string"] = self.automata.pop() + token["string"]
-        token["type"] = self.get_keyword_type(token["string"])
+            string = self.automata.pop() + string
+        token = self.get_keyword_token(string)
         if token["type"] == TokenTypes.UNRECOGNIZED:
             raise Exception(ParserErrorMssg.KEY_WORD)
         self.aux_automata.pop()
