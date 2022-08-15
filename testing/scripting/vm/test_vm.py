@@ -11,18 +11,13 @@ class TestBTCVM:
     vm = BTCVM()
 
     def test_one(self):
-        source_path = "./test_files/push_data.s"
+        self.vm.reset()
+        source_path = "./test_files/equations.s"
         expected_stack = [
-        bytes(), bytes(), (1).to_bytes(length=1, byteorder='little', signed=False),
-        (429496729).to_bytes(length=4, byteorder='little', signed=False), 
-        (0x10).to_bytes(length=4, byteorder='little', signed=False),
-        (0xFFFFFFFF).to_bytes(length=4, byteorder='little', signed=False),
-        (-1).to_bytes(length=4, byteorder='little', signed=True),
-        (1).to_bytes(length=4, byteorder='little', signed=False),
-        (1).to_bytes(length=4, byteorder='little', signed=False),
-        (2).to_bytes(length=4, byteorder='little', signed=False),
-        (15).to_bytes(length=4, byteorder='little', signed=False),
-        (16).to_bytes(length=4, byteorder='little', signed=False),
+        (1).to_bytes(length=1, byteorder='little', signed=True),
+        (1).to_bytes(length=1, byteorder='little', signed=True),
+        (1).to_bytes(length=1, byteorder='little', signed=True),
+        (0).to_bytes(length=1, byteorder='little', signed=True)
         ]
         result = {}
         with open(source_path, 'r') as source_file:
