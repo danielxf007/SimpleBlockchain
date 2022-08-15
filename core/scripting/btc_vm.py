@@ -8,19 +8,20 @@ class BTCVM:
 
     The name for the functions and how they work can be seem on:
     https://wiki.bitcoinsv.io/index.php/Opcodes_used_in_Bitcoin_Script
+
+    Numbers have been restricted to been signed 64 bits numbers 
     """
     
     def __init__(self):
         self.binary_type = bytes("BTC".encode())
         self.MAX_OP_CODES = 256
-        self.function_vector = []
+        self.function_vector = [None for _ in range(self.MAX_OP_CODES)]
         self.stack = []
         self.program_rom = bytes()
         self.pc = 0 #Program counter
         self.init_function_vector()
     
     def init_function_vector(self):
-        self.function_vector = [None for _ in range(self.MAX_OP_CODES)]
         self.function_vector[0x00] = self.push_empty_byte_arr
         for i in range(0x01, 0x4c):
             self.function_vector[i] = self.generate_push_data(i)
@@ -31,8 +32,8 @@ class BTCVM:
         self.function_vector[0x51] = self.push_1
         for i in range(0x52, 0x61):
             self.function_vector[i] = self.generate_op_2_16(i-0x50)
-        self.function_vector[0x93] = None
-        self.function_vector[0x9c] = None
+        self.function_vector[0x93] = self.add
+        self.function_vector[0x9c] = self.numequal
     
     def reset(self):
         self.stack.clear()
@@ -119,9 +120,9 @@ class BTCVM:
         value_1 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
         value_2 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
         if value_1 == value_2:
-            self.push((1).to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
+            self.push((1).to_bytes(length=1, byteorder="little", signed=False))
         else:
-            self.push((0).to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
+            self.push((0).to_bytes(length=1, byteorder="little", signed=False))
         self.pc += 1
 
     def is_btc_binary(self, binary_type):
