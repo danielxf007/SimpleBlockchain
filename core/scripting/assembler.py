@@ -6,8 +6,10 @@ class Assembler:
     def __init__(self):
         self.parser = Parser()
         self.func_dict = {
-        "constant": [None for i in range(24)], "stack": [], "data_manipulation": [],
-        "arithmetic": [None for i in range(26)], "cryptography": []}
+        "constant": [None for _ in range(24)], "flow_control": [None for _ in range(10)],
+        "stack": [None for _ in range(19)], "data_manipulation": [],
+        "bitwise_logic":[None for _ in range(6)], "arithmetic": [None for _ in range(27)],
+        "cryptography": [None for _ in range(10)]}
         self.init_func_dict()
     
     def init_func_dict(self):
@@ -24,8 +26,13 @@ class Assembler:
         for token_type in range(TokenTypes.OP_2, TokenTypes.OP_16+1):
             offset = token_type-TokenTypes.OP_2
             self.func_dict["constant"][token_type] = self.get_enconde_push_2_to_16(offset)
+        self.func_dict["flow_control"][TokenTypes.OP_VERIFY] = self.encode_verify
+        self.func_dict["stack"][TokenTypes.OP_DUP] = self.encode_dup
+        self.func_dict["bitwise_logic"][TokenTypes.OP_EQUALVERIFY] = self.encode_equalverify
         self.func_dict["arithmetic"][TokenTypes.OP_ADD] = self.encode_add
         self.func_dict["arithmetic"][TokenTypes.OP_NUMEQUAL] = self.encode_numequal
+        self.func_dict["cryptography"][TokenTypes.OP_HASH160] = self.encode_has160
+        self.func_dict["cryptography"][TokenTypes.OP_CHECKSIG] = self.encode_checksig
 
     def encode_push_empty(self, string):
         op_code = (0x00).to_bytes(length=1, byteorder='little', signed=False)
@@ -81,16 +88,37 @@ class Assembler:
             return op_code
         return encode_push_2_to_16
     
-    def encode_add(self, string):
+    def encode_verify(self):
+        op_code = (0x69).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
+    
+    def encode_dup(self):
+        op_code = (0x76).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
+    
+    def encode_equalverify(self):
+        op_code = (0x88).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
+
+    def encode_add(self):
         op_code = (0x93).to_bytes(length=1, byteorder='little', signed=False)
         return op_code
     
-    def encode_numequal(self, string):
-        op_code = (0x9C).to_bytes(length=1, byteorder='little', signed=False)
+    def encode_numequal(self):
+        op_code = (0x9c).to_bytes(length=1, byteorder='little', signed=False)
         return op_code
+    
+    def encode_has160(self):
+        op_code = (0xa9).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code
+    
+    def encode_checksig(self):
+        op_code = (0xac).to_bytes(length=1, byteorder='little', signed=False)
+        return op_code        
+
 
     def assemble(self, source_file_content):
-        """Gets the content of the source file parsed and returns a dictionary with
+        """Gets the content of the source file, gets it parsed and returns a dictionary with
         a flag indicating whether an error happened or not, an error message and a binary
         with the encoded operations.
 
@@ -107,7 +135,10 @@ class Assembler:
             binary = bytes("BTC", "ascii")
             tokens = self.parser.parse(source_file_content)
             for token in tokens:
-                op_code = self.func_dict[token["category"]][token["type"]](token["string"])
+                if token["category"] == "constant":
+                    op_code = self.func_dict["constant"][token["type"]](token["string"])
+                else:
+                    op_code = self.func_dict[token["category"]][token["type"]]()
                 binary += op_code
             result["binary"] = binary
         except Exception as e:
