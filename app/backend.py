@@ -1,13 +1,11 @@
-from core.data_bases.tx_db import TXDB
 from core.data_bases.utxo_reference_db import UTXOReferenceDB
+from core.blockchain import Blockchain
 from core.wallet import Wallet
 from core.miner import Miner
 from util.conversions import btc_to_satoshi
 from util.conversions import satoshi_to_btc
-from datetime import datetime
-import pickle
-import hashlib
 import random
+from ecdsa import SigningKey
 
 class Backend:
     """This classes uses the core elements
@@ -23,23 +21,51 @@ class Backend:
         self.names_file_path = "./data/names.txt"
         self.n_names = 18238
         self.pending_txs = []
-        self.tx_db = TXDB()
-        self.utxo_reference_db = UTXOReferenceDB()
-        self.last_block_hash = hashlib.sha256('0'.encode()).hexdigest()
-        self.blockchain = []
-        self.blockchain_history = []
+        self.blockchain = Blockchain([])
+        self.utxo_reference_db = UTXOReferenceDB([])
         self.current_fee = random.randint(10**2, 10**3)
+        self.connected_wallet: Wallet = None
+        self.initialized = False
     
     def init_system(self):
         """Initializes the system by creating a user called Satoshi and mining
         the genesis block, it also returns a list of messages about the operations
         """
+        if self.initialized:
+            return ["The system has been already initialized"]
         messages = []
         user_name = "Satoshi"
         messages.append(self.create_wallet(user_name)["message"])
         messages.append(self.create_miner(user_name))
         messages.append(self.mining_block())
+        self.initialized = True
         return messages
+    
+    def download_lock_scripts(self, dir_path):
+        """Downloads the lock scripts from the utxos on the utxo reference database,
+        the script has comments were it specifies the tx hash of the tx which has the utxo,
+        an utxo index
+
+        dir_path -- it is the path of the directory where the scripts will be downloaded. 
+        """
+        generic_name = "lock_script"
+        index = 1
+        extension = ".s"
+        message = "The scripts were downloaded"
+        try:
+            for reference in self.utxo_reference_db.get_references():
+                tx_hash = reference["tx_hash"]
+                utxo_index = reference["utxo_index"]
+                utxo = self.blockchain.get_utxo(tx_hash, utxo_index)
+                lock_script = f"# TX Hash: {tx_hash}\n# UTXO Index: {utxo_index}\n# Script\n"
+                lock_script += utxo.lock_script
+                lock_script_file_path = dir_path + generic_name + str(index) + extension
+                with open(lock_script_file_path, 'w') as lock_file:
+                    lock_file.write(lock_script)
+                index += 1
+        except Exception as e:
+            message = f"Something went wrong {e}"
+        return message
 
     def create_wallet(self, user_name):
         """Returns a dictionary with a sucess flags and a message
@@ -48,16 +74,17 @@ class Backend:
         user_name -- it is the name associated to the wallet
         """
         if not user_name in self.wallets.keys():
-            public_key = hashlib.sha256(user_name.encode()).hexdigest()
-            tx_db_state = self.tx_db.get_txs().copy()
-            utxo_reference_db_state = self.utxo_reference_db.get_utxo_references().copy()
-            wallet = Wallet(public_key, tx_db_state, utxo_reference_db_state)
+            private_key = SigningKey.generate()
+            public_key = private_key.verifying_key
+            blockchain_state = self.blockchain.get_blocks().copy()
+            utxo_references = self.utxo_reference_db.get_references().copy()
+            wallet = Wallet(private_key, public_key, blockchain_state, utxo_references)
             self.wallets[user_name] = wallet
             return {"success": True,
                     "message": f"{user_name} your wallet was created"}
         return {"success": False,
                 "message": f"The user {user_name} has already created a wallet"}
-    
+
     def create_random_wallets(self, n_r_wallets):
         """Reads a random name from a text file and returns a list of messages
 
@@ -79,6 +106,111 @@ class Backend:
                 n_created_wallets+=1
         names_file.close()
         return messages
+    
+    def connect_to_wallet(self, user_name):
+        if user_name in self.wallets.keys():
+            self.connected_wallet =  self.wallets[user_name]
+            return {
+            "success": True,
+            "message": f"Hello {user_name}"}
+        return {
+            "success": False,
+            "message": f"{user_name} has no wallet"}
+    
+    def log_out(self):
+        if self.connected_wallet:
+            self.connected_wallet = None
+
+    def get_wallet_keys(self):
+        """Returns a message containing the 
+        private and public key associated of a wallet
+
+        The user has to be connected to their to use this method
+
+        Keyword arguments:
+        user_name -- it is the name associated to the wallet
+        """
+        private_key = self.connected_wallet.get_private_key()
+        public_key = self.connected_wallet.get_public_key()
+        return f"Private key: {private_key}\nPublic key: {public_key}"
+    
+    def create_tx_input(self, tx_hash, utxo_index, unlock_script_path):
+        """The current connected wallet creates a tx input which would be used
+        to spend the referenced utxo
+        
+        Keyword arguments:
+        tx_hash -- it is the hash of the tx where the utxo is stored
+        utxo_index -- it is a string which holds the index of the utxo within the transaction
+        unlock_script_path -- it is the script that unlocks the utxo
+        """
+        result = self.connected_wallet.create_tx_input(tx_hash, int(utxo_index), unlock_script_path)
+        if result["success"]:
+            message = "The Transaction input was created"
+        else:    
+            message = result["err"]
+        return message
+
+    def remove_tx_input(self, index):
+        """The current connected wallet removes a tx input from the ones used to make a 
+        transaction
+        
+        Keyword arguments:
+        index -- it is the index of the tx input
+        """
+        result = self.connected_wallet.remove_tx_input(index)
+        if result["success"]:
+            message = f"The Transaction input at {index} was deleted"
+        else:    
+            message = result["err"]
+        return message
+    
+    def get_tx_inputs(self):
+        """Gets the tx inputs which would be used
+        to spend the referenced utxo from the current connected wallet
+        """
+        return self.connected_wallet.get_tx_inputs()
+    
+    def get_available_utxos(self):
+        """
+        """
+        return self.connected_wallet.get_available_utxos()
+    
+    def create_utxo(self, value, lock_script_path):
+        """
+        """
+        value_satoshi = btc_to_satoshi(float(value))
+        result = self.connected_wallet.create_utxo(value_satoshi, lock_script_path)
+        if result["success"]:
+            message = f"The Unspent Transaction Output was created"
+        else:    
+            message = result["err"]
+        return message
+    
+    def remove_utxo(self, index):
+        """
+        """
+        result = self.connected_wallet.remove_utxo(index)
+        if result["success"]:
+            message = f"The Unspent Transaction Output at {index} was deleted"
+        else:    
+            message = result["err"]
+        return message
+    
+    def get_created_utxos(self):
+        """
+        """
+        return self.connected_wallet.get_utxos()
+    
+    def create_tx(self):
+        """
+        """
+        result = self.connected_wallet.create_tx(self.current_fee)
+        if result["success"]:
+            self.pending_txs.append(result["tx"])
+            message = "The transaction was created wait until it's validated"
+        else:
+            message = result["err"]
+        return message
 
     def get_wallet_balance(self, user_name):
         """Gets the balance of a wallet and returns a formatted message
@@ -92,29 +224,6 @@ class Backend:
             balance = wallet.get_balance()
             return f"{user_name} has {satoshi_to_btc(balance):.8f} BTC"
         return f"{user_name} has no wallet"
-    
-    def get_wallet_available_utxo_values(self, user_name):
-        """Gets the balance values of unspent transaction output the given user
-        can spend and returns a formatted message
-
-        Keyword arguments:
-        user_name -- it is the name of a user who has a wallet
-        """
-        messages = []
-        if user_name in self.wallets.keys():
-            wallet:Wallet = self.wallets[user_name]
-            index = 1
-            for utxo_value in wallet.get_available_utxo_values():
-                message = f"{index}.UTXO Value: {satoshi_to_btc(utxo_value):.8f} BTC"
-                messages.append(message)
-                index+=1
-            if not messages:
-                message = f"{user_name} there are not UTXOs that you can spend"
-                messages.append(message)
-        else:
-            messages.append(f"{user_name} has no wallet")
-        return messages
-
 
     def get_n_wallets(self):
         """Gets the number of wallets in the system and returns a formatted message"""
@@ -129,7 +238,7 @@ class Backend:
         return messages
 
     def create_miner(self, user_name):
-        """Returns a formatted message
+        """Created a miner and returns a formatted message about the creation
 
         Keyword arguments:
         user_name -- it is the name of a user who has a wallet
@@ -137,9 +246,9 @@ class Backend:
         if user_name in self.wallets.keys():
             if not user_name in self.miners.keys():
                 wallet = self.wallets[user_name]
-                tx_db_state = self.tx_db.get_txs().copy()
-                utxo_reference_db_state = self.utxo_reference_db.get_utxo_references().copy()
-                miner = Miner(wallet.public_key, tx_db_state, utxo_reference_db_state)
+                blockchain_state = self.blockchain.get_blocks().copy()
+                utxo_references = self.utxo_reference_db.get_references().copy()
+                miner = Miner(wallet.get_public_key(), blockchain_state, utxo_references)
                 self.miners[user_name] = miner
                 return f"{user_name} you can now mine blocks!"
             return f"{user_name} can mine blocks already!"
@@ -177,99 +286,54 @@ class Backend:
         """Gets a message with the current transaction fee on BTC"""
         return f"The current transaction fee is: {satoshi_to_btc(self.current_fee):.8f} BTC"
 
-
-    def transfer(self, from_user, to_user, amount, change_target):
-        """Creates a transaction, saves it into a pending transaction list and
-        returns a dictionary with a sucess flags and a formatted message
-
-        Keyword arguments:
-        from_user -- it is the user who wants to tranfer btc
-        to_user -- it is the user who will get the btc
-        amount -- it is the amount of btc that will be transfered
-        change_target -- it is the user who will get the change generated by the transaction
-        fee -- it is the amount of btc the miner will be paid for their work 
-        """
-        if not from_user in self.wallets.keys():
-            return f"The user {from_user} has no wallet"
-        elif not to_user in self.wallets.keys():
-            return f"The user {to_user} has no wallet"
-        elif not change_target in self.wallets.keys():
-            return f"The user {change_target} has no wallet"
-        source_wallet = self.wallets[from_user]
-        dest_wallet = self.wallets[to_user]
-        change_wallet = self.wallets[change_target]
-        tx = source_wallet.create_tx(
-            dest_wallet.public_key,
-            btc_to_satoshi(float(amount)),
-            change_wallet.public_key,
-            self.current_fee)
-        if tx:
-            self.pending_txs.append(tx)
-            return {"success": True,
-                    "message": f"{from_user} your transaction is waiting to be approved"}
-        return {"success": True,
-                "message": f"{from_user} you don't have enough balance"}
-                
-
-    def make_r_txs(self, n_transactions):
-        """Creates random trasactions using the user Satohsi and returns a message
-        indicating how many transactions were made by Satoshi
-
-        Keyword arguments:
-        n_transactions -- it is the random number of transactions to be made
-        """
-        targets = list(self.wallets.keys())
-        n_completed = 0
-        for _ in range(n_transactions):
-            target = targets[random.randint(0, len(targets)-1)]
-            amount = random.uniform(10**-3, 10**-4)
-            change_target = "Satoshi"
-            success, _ = self.transfer("Satoshi", target, amount, change_target).values()
-            if not success:
-                break
-            else:
-                n_completed+=1
-        return f"Satoshi made {n_completed} transactions"
-
     def choose_miner(self):
         """Returns a randomly selected miner who will mine the block"""
         miner_keys = list(self.miners.keys())
         miner_key = miner_keys[random.randint(0, len(miner_keys)-1)]
         return miner_key
     
-    def update_global_dbs(self, miner):
-        """Updates the trasaction database and the references to unspent transaction
-        outputs database by storing a copy of the current state of this databases the miner has
+    def update_utxo_references(self, miner):
+        """Updates the global unspent transaction
+        outputs database by storing a copy of the miner's reference
         after validating the transactions
 
         Keyword arguments:
         miner -- it is the miner who added the new block
         """
-        self.tx_db.txs = miner.get_tx_db_state().copy()
-        self.utxo_reference_db.utxo_references = miner.get_utxo_reference_db_state().copy()
+        references = miner.get_utxo_references().copy()
+        self.utxo_reference_db.set_references(references)
 
-
-    def update_wallet_dbs(self):
-        """Updates the trasaction database and the references to unspent transaction
-        outputs database by storing a copy of the current state of the global state of these
+    def update_wallets_utxo_references(self):
+        """Updates the references to unspent transaction
+        outputs database by storing a copy of the current state of the global state of the
         databases
         """
         for key in self.wallets.keys():
             wallet = self.wallets[key]
-            wallet.set_tx_db_state(self.tx_db.get_txs().copy())
-            wallet.set_utxo_reference_db_state(
-                self.utxo_reference_db.get_utxo_references().copy())
+            wallet.set_utxo_references(self.utxo_reference_db.get_references().copy())
+    
+    def update_wallets_blockchain_state(self):
+        for key in self.wallets.keys():
+            wallet = self.wallets[key]
+            wallet.set_blocks(self.blockchain.get_blocks().copy())
 
-    def update_miner_dbs(self):
+    def update_miners_utxo_references(self):
         """Updates the trasaction database and the references to unspent transaction
         outputs database by storing a copy of the current state of the global state of these
         databases
         """
         for key in self.miners.keys():
             miner = self.miners[key]
-            miner.set_tx_db_state(self.tx_db.get_txs().copy())
-            miner.set_utxo_reference_db_state(
-                self.utxo_reference_db.get_utxo_references().copy())
+            miner.set_utxo_references(self.utxo_reference_db.get_references().copy())
+
+    def update_miners_blockchain_state(self):
+        """Updates the trasaction database and the references to unspent transaction
+        outputs database by storing a copy of the current state of the global state of these
+        databases
+        """
+        for key in self.miners.keys():
+            miner = self.miners[key]
+            miner.set_blocks(self.blockchain.get_blocks().copy())
     
     def update_fee(self):
         """Updates the fee that must be payed for a transaction
@@ -277,31 +341,6 @@ class Backend:
         The fee unit is satoshi
         """
         self.current_fee = random.randint(10**2, 10**3)
-    
-    def valid_proof_of_work(self, hashed_header, difficulty):
-        """Checks whether the proof of work a miner did is valid or not
-
-        Each number from the hash is transformed into a binary nibbel (4 bits),
-        then the number of consecutives zeroes are counted
-        
-        Keyword arguments:
-        hashed_header -- it is the hash represented as a hexdigest of the block header
-        difficulty -- it is the number of zeroes the hash must have, according to the
-        block header
-        """
-        n_zeros = 0
-        stop = False
-        for n in hashed_header:
-            nibble = f"{int(n, 16):0{4}b}"
-            for bit in nibble:
-                if bit == '0':
-                    n_zeros+=1
-                else:
-                    stop = True
-                    break
-            if stop:
-                break
-        return n_zeros == difficulty 
 
     def mining_block(self):
         """This method is used to add a new block to the chain,
@@ -321,99 +360,25 @@ class Backend:
         else:
             txs = self.pending_txs
         difficulty = random.randint(1, 16)
-        height = len(self.blockchain)
-        block = miner.mining_block(self.last_block_hash, txs, height, difficulty)
-        block_header = block.header
-        hashed_header = hashlib.sha256(pickle.dumps(block_header)).hexdigest()
-        if not self.valid_proof_of_work(hashed_header, block.header.difficulty):
-            return f"The miner {miner_key} did not present a valid proof of work"
-        self.blockchain.append(block)
-        self.update_global_dbs(miner)
-        self.update_wallet_dbs()
-        self.update_miner_dbs()
+        block = miner.mining_block(txs, difficulty)
+        self.blockchain.add(block)
+        self.update_utxo_references(miner)
+        self.update_wallets_utxo_references()
+        self.update_wallets_blockchain_state()
+        self.update_miners_utxo_references()
+        self.update_miners_blockchain_state()
         self.update_fee()
-        self.last_block_hash = hashlib.sha256(pickle.dumps(block)).hexdigest()
         self.pending_txs.clear()
-        self.blockchain_history.append({"author": miner_key, "height": height,
-                                        "date": datetime.now()})
-        return f"The miner {miner_key} added the block #{height} to the chain"
-
-    def get_user_name(self, public_key):
-        """Returns the user name which has a wallet with the given public key
-
-        Keyword arguments:
-        public_key -- it is a public key associated to a wallet      
-        """
-        user_name = ""
-        for key in self.wallets.keys():
-            wallet = self.wallets[key]
-            if public_key == wallet.public_key:
-                user_name = key
-        return user_name
+        return f"The miner {miner_key} added the block #{self.blockchain.get_height()} to the chain"
     
-    def get_tx_format(self, tx):
-        """Returns a a dictionary with a format which will be used to print the
-        data in the trasaction
-
-        Keyword arguments:
-        tx -- it is a transaction that will be printed
-        """
-        format = {}
-        from_user = self.get_user_name(tx.creator_public_key)
-        change_utxo = tx.get_utxo_arr()[0]
-        transfer_utxo = tx.get_utxo_arr()[1]
-        change_beneficiary = self.get_user_name(change_utxo.public_key)
-        transfer_beneficiary = self.get_user_name(transfer_utxo.public_key)
-        change_value = satoshi_to_btc(change_utxo.value)
-        transfer_value = satoshi_to_btc(transfer_utxo.value)
-        if not tx.coin_base:
-            format["change"] = f"{change_beneficiary} got {change_value:.8f} BTC as change"
-            format["transfer"] = f"{from_user} transfered {transfer_value:.8f} BTC to {transfer_beneficiary}"
-        else:
-            format["transfer"] = f"{transfer_beneficiary} got rewarded with {transfer_value:.8f} BTC for mining"
-        return format
-    
-    def get_block_format(self, block_height):
+    def get_block(self, block_height):
         """Returns a a dictionary with a format which will be used to print the
         data in the block
 
         Keyword arguments:
         block_height -- it is the index where the block can be found
-        """        
-        format = {}
-        if block_height > len(self.blockchain)-1:
-            format["Err"] = f"The block #{block_height} has not been added to the chain yet"
-            return format
-        format["n_sep_lines"] = 100
-        block = self.blockchain[block_height]
-        author = self.blockchain_history[block_height]["author"]
-        format["author"] = f"Author: {author}"
-        block_header = block.header
-        format["prev_hash"] = f"Previous Block Hash: {block_header.prev_hash}"
-        format["root_hash"] = f"Root Hash: {block_header.root_hash}"
-        format["height"] = f"Height: {block_header.height}"
-        format["difficulty"] = f"Difficulty: {block_header.difficulty}"
-        format["nonce"] = f"Nonce: {block_header.nonce}"
-        date = self.blockchain_history[block_height]["date"]
-        format["date"] = f"Timestamp: {date}"
-        txs = self.tx_db.get_txs_by_hash(block.tx_hash_arr)
-        format["txs"] = []
-        for key in txs:
-            format["txs"].append(self.get_tx_format(txs[key]))
-        format["Err"] = ""
-        return format
-    
-    def get_block_history(self):
-        """Returns the whole history of the chain, that is who added the block to the chain
-        and the number of the block that was added
         """
-        messages = []
-        for history in self.blockchain_history:
-            author = history["author"]
-            block_height = history["height"]
-            message = f"The miner {author} added the block #{block_height} to the chain"
-            messages.append(message)
-        if not messages:
-            message = f"The blockchain is empty"
-            messages.append(message)
-        return messages
+        block = self.blockchain.get_block(block_height)
+        if block:
+            return {"success": True, "message": "", "block": block}       
+        return {"success": False, "message": "Block not found", "block": block}
