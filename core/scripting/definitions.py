@@ -55,7 +55,8 @@ class LanguageSymbols:
     WORD = "W"
     SLASH ="\\"
     DOUBLE_QUOTES = "\""
-    STRING = "S" 
+    STRING = "S"
+    LINE_COMMENT = "#"
 
 class TokenTypes:
     UNRECOGNIZED = -1
