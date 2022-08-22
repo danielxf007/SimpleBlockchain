@@ -67,6 +67,9 @@ class Parser:
     def is_word(self, symbol):
         return LanguageSymbols.WORD == symbol
     
+    def is_line_comment(self, symbol):
+        return LanguageSymbols.LINE_COMMENT == symbol
+    
     def get_decimal_int_token(self):
         token = {"string": "", "category": "constant", "type": TokenTypes.DECIMAL_INT}
         while not self.automata.empty():
@@ -225,7 +228,9 @@ class Parser:
             if not self.is_ascii(symbol):
                 raise Exception(ParserErrorMssg.NOT_ASCII)
             if self.automata.empty() and self.aux_automata.empty():
-                if self.is_negative(symbol):
+                if self.is_line_comment(symbol):
+                    self.aux_automata.push(symbol)
+                elif self.is_negative(symbol):
                     self.aux_automata.push(LanguageSymbols.INT)
                     self.aux_automata.push(LanguageSymbols.NEGATIVE)
                 elif self.is_non_zero_decimal_digit(symbol):
@@ -243,7 +248,12 @@ class Parser:
                     self.automata.push(symbol)
                     self.aux_automata.push(LanguageSymbols.WORD)
             elif self.automata.empty() and not self.aux_automata.empty():
-                if self.is_negative(aux_top_symbol):
+                if self.is_line_comment(aux_top_symbol):
+                    if symbol == '\n':
+                        self.aux_automata.pop()
+                elif not self.is_line_comment(aux_top_symbol) and self.is_line_comment(symbol):
+                    self.aux_automata.push(symbol)
+                elif self.is_negative(aux_top_symbol):
                     if symbol == '0':
                         self.automata.push(symbol)
                     elif self.is_non_zero_decimal_digit(symbol):
@@ -262,7 +272,12 @@ class Parser:
                     else:
                         self.automata.push(symbol)
             elif not self.automata.empty() and not self.aux_automata.empty():
-                if self.is_negative(aux_top_symbol) or self.is_int(aux_top_symbol):
+                if self.is_line_comment(aux_top_symbol):
+                    if symbol == '\n':
+                        self.aux_automata.pop()
+                if not self.is_line_comment(aux_top_symbol) and self.is_line_comment(symbol):
+                    self.aux_automata.push(symbol)
+                elif self.is_negative(aux_top_symbol) or self.is_int(aux_top_symbol):
                     if top_symbol == '0':
                         if self.is_white_space(symbol):
                             tokens.append(self.get_decimal_int_token())
