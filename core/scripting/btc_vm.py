@@ -1,6 +1,36 @@
 from core.scripting.definitions import ByteSize,BTCVMErrorMssg
 from Crypto.Hash import SHA256, RIPEMD160
 
+class Stack:
+
+    def __init__(self):
+        self.state = []
+    
+    def get_size(self):
+        return len(self.state)
+
+    def get_state(self):
+        return self.state
+    
+    def is_empty(self):
+        return len(self.state) == 0
+    
+    def push(self, value):
+        self.state.append(value)
+    
+    def pop(self):
+        if not self.is_empty():
+            return self.state.pop()
+        return None
+    
+    def get_top(self):
+        if not self.is_empty():
+            return self.state[len(self.state)-1]
+        return None
+
+    def reset(self):
+        self.state.clear()
+
 class BTCVM:
     """ This class represents a stack based virtual machine that
     is able to execute functions according to the data in tokens
@@ -16,7 +46,7 @@ class BTCVM:
         self.binary_type = bytes("BTC".encode())
         self.MAX_OP_CODES = 256
         self.function_vector = [None for _ in range(self.MAX_OP_CODES)]
-        self.stack = []
+        self.stack = Stack()
         self.program_rom = bytes()
         self.pc = 0 #Program counter
         self.init_function_vector()
@@ -26,7 +56,7 @@ class BTCVM:
         self.function_vector[0x00] = self.push_empty_byte_arr
         for i in range(0x01, 0x4c):
             self.function_vector[i] = self.generate_push_data(i)
-        self.function_vector[0x4c] = None
+        self.function_vector[0x4c] = self.pushdata1
         self.function_vector[0x4d] = None
         self.function_vector[0x4e] = None
         self.function_vector[0x4f] = self.push_1_negate
@@ -43,24 +73,25 @@ class BTCVM:
         self.function_vector[0x9c] = self.numequal
         #Cryptography
         self.function_vector[0xa9] = self.hash160
-        self.function_vector[0xac] = None
+        self.function_vector[0xac] = self.checksig
     
     def reset(self):
-        self.stack.clear()
+        self.stack.reset()
         self.program_rom = bytes()
         self.pc = 0
     
-    def get_stack(self):
-        return self.stack
+    def get_stack_state(self):
+        return self.stack.get_state()
     
-    def push(self, byte_arr):
-        self.stack.append(byte_arr)
-    
-    def pop(self):
-        return self.stack.pop()
+    def on_valid_state(self):
+        if self.stack.get_top() == bytes():
+            return False
+        if self.stack.get_top() == (0).to_bytes(length=1, byteorder="little", signed=False):
+            return False
+        return True
 
     def push_empty_byte_arr(self):
-        self.push(bytes())
+        self.stack.push(bytes())
         self.pc += 1
 
     def generate_push_data(self, n_bytes):
@@ -76,9 +107,18 @@ class BTCVM:
             if self.pc+n_bytes > len(self.program_rom)-1:
                 raise Exception(BTCVMErrorMssg.NOT_ENOUGH_BYTES)
             byte_arr = self.program_rom[self.pc+1 : (self.pc+1)+n_bytes]
-            self.push(byte_arr)
+            self.stack.push(byte_arr)
             self.pc += (n_bytes + 1)
         return push_n_bytes
+    
+    def pushdata1(self):
+        self.pc += 1
+        n_bytes = self.program_rom[self.pc]
+        if self.pc+n_bytes > len(self.program_rom)-1:
+            raise Exception(BTCVMErrorMssg.NOT_ENOUGH_BYTES)
+        byte_arr = self.program_rom[self.pc+1 : (self.pc+1)+n_bytes]
+        self.stack.push(byte_arr)
+        self.pc += (n_bytes + 1)
     
     def push_1_negate(self):
         """Pushes the number -1 as an array of bytes of length 1 onto the stack.
@@ -86,7 +126,7 @@ class BTCVM:
         The byte array is little endian.
         """
         value = -1
-        self.push(value.to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
+        self.stack.push(value.to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
         self.pc += 1
     
     def push_1(self):
@@ -95,7 +135,7 @@ class BTCVM:
         The byte array is little endian.
         """
         value = 1
-        self.push(value.to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
+        self.stack.push(value.to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
         self.pc += 1
     
     def generate_op_2_16(self, n):
@@ -107,59 +147,69 @@ class BTCVM:
         value -- it is the number that will be pushed
         """
         def push_n():
-            self.push(n.to_bytes(length=ByteSize.INT, byteorder="little", signed=False))
+            self.stack.push(n.to_bytes(length=ByteSize.INT, byteorder="little", signed=False))
             self.pc += 1
         return push_n
     
     def verify(self):
-        if len(self.stack) < 1:
+        if self.stack.is_empty():
             raise Exception(f"Error OP_VERIFY: {BTCVMErrorMssg.UNARY_OP}")
-        value = int.from_bytes(bytes=self.pop(), byteorder="little", signed=False)
+        value = int.from_bytes(bytes=self.stack.pop(), byteorder="little", signed=False)
         if not value:
             raise Exception(f"Error OP_VERIFY: {BTCVMErrorMssg.FAILED_VERIFY}")
+        self.pc += 1
 
     def equalverify(self):
-        if len(self.stack) < 2:
+        if self.stack.get_size() < 2:
             raise Exception(f"Error OP_EQUALVERIFY: {BTCVMErrorMssg.BINARY_OP}")
-        value_1 = self.pop()
-        value_2 = self.pop()
+        value_1 = self.stack.pop()
+        value_2 = self.stack.pop()
         if value_1 == value_2:
-            self.push((1).to_bytes(length=1, byteorder="little", signed=False))
+            self.stack.push((1).to_bytes(length=1, byteorder="little", signed=False))
         else:
-            self.push((0).to_bytes(length=1, byteorder="little", signed=False))
+            self.stack.push((0).to_bytes(length=1, byteorder="little", signed=False))
         self.verify()
         self.pc += 1
 
     def add(self):
-        if len(self.stack) < 2:
+        if self.stack.get_size() < 2:
             raise Exception(f"Error OP_ADD: {BTCVMErrorMssg.BINARY_OP}")
-        value_1 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
-        value_2 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
+        value_1 = int.from_bytes(bytes=self.stack.pop(), byteorder="little", signed=True)
+        value_2 = int.from_bytes(bytes=self.stack.pop(), byteorder="little", signed=True)
         number = value_1 + value_2
         n_bytes = (number.bit_length() + 7) // 8
         if n_bytes <= ByteSize.INT:
-            self.push(number.to_bytes(length=ByteSize.INT, byteorder="little", signed=True))
+            self.stack.push(number.to_bytes(length=ByteSize.INT, byteorder="little",
+             signed=True))
         else:
-            self.push(number.to_bytes(length=n_bytes, byteorder="little", signed=True))
+            self.stack.push(number.to_bytes(length=n_bytes, byteorder="little", signed=True))
         self.pc += 1
     
     def numequal(self):
-        if len(self.stack) < 2:
+        if self.stack.get_size() < 2:
             raise Exception(f"Error OP_NUMEQUAL: {BTCVMErrorMssg.BINARY_OP}")
-        value_1 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
-        value_2 = int.from_bytes(bytes=self.pop(), byteorder="little", signed=True)
+        value_1 = int.from_bytes(bytes=self.stack.pop(), byteorder="little", signed=True)
+        value_2 = int.from_bytes(bytes=self.stack.pop(), byteorder="little", signed=True)
         if value_1 == value_2:
-            self.push((1).to_bytes(length=1, byteorder="little", signed=False))
+            self.stack.push((1).to_bytes(length=1, byteorder="little", signed=False))
         else:
-            self.push((0).to_bytes(length=1, byteorder="little", signed=False))
+            self.stack.push((0).to_bytes(length=1, byteorder="little", signed=False))
         self.pc += 1
     
     def hash160(self):
-        if len(self.stack) < 1:
+        if self.stack.is_empty():
             raise Exception(f"Error OP_HASH160: {BTCVMErrorMssg.UNARY_OP}")
-        hexdigest_value = SHA256.new(self.pop()).hexdigest()
+        hexdigest_value = SHA256.new(self.stack.pop()).hexdigest()
         hexdigest_value = RIPEMD160.new(hexdigest_value.encode()).hexdigest()
-        self.push(hexdigest_value.encode())
+        self.stack.push(hexdigest_value.encode())
+        self.pc += 1
+    
+    def checksig(self):
+        if self.stack.get_size() < 2:
+            raise Exception(f"Error OP_CHECKSIG: {BTCVMErrorMssg.BINARY_OP}")
+        self.stack.pop()
+        self.stack.pop()
+        self.stack.push((1).to_bytes(length=1, byteorder="little", signed=False))
         self.pc += 1
 
     def is_btc_binary(self, binary_type):
@@ -179,10 +229,10 @@ class BTCVM:
             while self.pc < len(self.program_rom):
                 op_code = self.program_rom[self.pc]
                 print(f"OP CODE: {op_code}")
-                print(f"Before: {self.stack}")
+                print(f"Before: {self.stack.get_state()}")
                 func = self.function_vector[op_code]
                 func()
-                print(f"After: {self.stack}")
+                print(f"After: {self.stack.get_state()}")
             result["success"] = True
         except Exception as e:
             result["success"] = False
