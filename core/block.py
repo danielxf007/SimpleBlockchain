@@ -1,5 +1,5 @@
 class BlockHeader:
-    """This class contains the fields of a block header"""
+    """This data structure contains the fields of a block header"""
 
     def __init__(self, prev_hash, root_hash, height, difficulty, nonce):
         """Initializes the class' attributes
@@ -19,22 +19,18 @@ class BlockHeader:
         self.height = height
         self.difficulty = difficulty
         self.nonce = nonce
-    
-    def set_nonce(self, nonce):
-        """Changes the current nonce for a new one"""
-        self.nonce = nonce
 
 class Block:
-    """This class contains the fields of a block"""
+    """This data structure contains the fields of a block"""
 
-    def __init__(self, header, tx_hash_arr):
+    def __init__(self, header, txs, author, date):
         """Initializes the class' attributes
         
         Keyword arguments:
         header -- it is the header of this block
-        tx_hash_arr -- it is the an array of hashed transactions
+        txs-- it is a list  of transactions
         """
         self.header = header
-        self.tx_hash_arr = tx_hash_arr
-    
-    
+        self.txs = txs
+        self.author = author
+        self.date = date
