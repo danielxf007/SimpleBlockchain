@@ -1,203 +1,182 @@
-from core.data_bases.tx_db import TXDB
+from core.blockchain import Blockchain
 from core.data_bases.utxo_reference_db import UTXOReferenceDB
 from core.transactions.tx import TX
 from core.transactions.tx_in import TXIn
 from core.transactions.utxo import UTXO
-from itertools import permutations
-import hashlib
-import pickle
-import sys
-
+from core.scripting.assembler import Assembler
+from core.scripting.btc_vm import BTCVM
 from util.conversions import satoshi_to_btc
+
+class WalletErrorMssgs:
+    SPENT_UTXO = "The utxo has been already spent by someone else"
+    UNLOCK_SCRIPT = "The utxo could not be unlock with the given unlock script"
 
 class Wallet:
     """This class allows the user to create transactions """
 
-    def __init__(self, public_key, tx_db_state, utxo_reference_db_state):
+    def __init__(self, private_key, public_key, blocks, utxo_references):
         """Creates an instance of two databases and copies their current state
 
         Keyword arguments:
-        public_key -- it is the public_key assigned to this wallet
-        tx_db_state -- it is the current state of the transaction database
-        utxo_reference_db_state -- it is the current state of the unspent transaction
-        out references database
+        private_key -- it is a SigningKey object assigned to this wallet
+        public_key -- it is an object which will be used to verify signatures, it was 
+        generated from the corresonding SigningKey object
+        blocks -- it is a copy of the current state of the global blockchain
+        utxo_reference_db_state -- it is a copy of the current state of the unspent 
+        transaction out references database
         """
+        self.private_key = private_key
         self.public_key = public_key
-        self.tx_db: TXDB = TXDB()
-        self.utxo_reference_db = UTXOReferenceDB()
-        self.tx_db.txs = tx_db_state
-        self.utxo_reference_db.utxo_references = utxo_reference_db_state
+        self.blockchain = Blockchain(blocks)
+        self.utxo_reference_db = UTXOReferenceDB(utxo_references)
+        self.assembler = Assembler()
+        self.btcvm = BTCVM()
+        self.tx_inputs = []
+        self.utxos = []
+
+    def get_private_key(self):
+        """Returns the private key as an hexadecimal string"""
+        return self.private_key.to_string().hex()
     
-    def set_tx_db_state(self, tx_db_state):
-        """Changes the data stored in the transaction database by given state
+    def get_public_key(self):
+        """Returns the public key as an hexadecimal string"""
+        return self.public_key.to_string().hex()
+
+    def set_blocks(self, blocks):
+        """Changes the data blockchain state
 
         Keyword arguments:
-        tx_db_state -- it is a copy of the global state of the transaction database
+        blocks -- it is the global state of the chain
         """
-        self.tx_db.txs = tx_db_state
+        self.blockchain.set_blocks(blocks)
     
-    def set_utxo_reference_db_state(self, utxo_reference_db_state):
-        """Changes the data stored in the unspent transaction
-        out references database by given state
+    def set_utxo_references(self, utxo_references):
+        """Changes the references on the references db
 
         Keyword arguments:
-        tx_db_state -- it is a copy of the global state of the unspent transaction
-        out references database
+        utxo_references -- it is a copy of the global state of the unspent transaction
+        out references
         """
-        self.utxo_reference_db.utxo_references = utxo_reference_db_state
-
-    def get_available_utxo_references(self):
-        """Returns the references to unspent transaction outputs this wallet can spend"""
-        utxo_references = self.utxo_reference_db.get_utxo_references()
-        available_utxo_references = []
-        for utxo_reference in utxo_references:
-            tx = self.tx_db.get_tx(utxo_reference["tx_hash"])
-            utxo = tx.get_utxo(utxo_reference["utxo_index"])
-            if utxo.can_spend(self.public_key):
-                available_utxo_references.append(utxo_reference)
-        return available_utxo_references
+        self.utxo_reference_db.set_references(utxo_references)
     
-    def create_tx_inputs(self, utxo_references):
-        """Returns the transaction inputs with the references to
-        unspent transaction outputs this wallet can spend
-        
-        Keyword arguments:
-        utxo_references -- these are refereces to unspent transaction outputs
-        this wallet can spend
-        """
-        tx_inputs = []
-        for utxo_reference in utxo_references:
-            tx_input = TXIn(utxo_reference["tx_hash"], utxo_reference['utxo_index'],
-                            self.public_key)
-            tx_inputs.append(tx_input)
-        return tx_inputs
+    def available_utxo(self, tx_hash, utxo_index):
+        return self.utxo_reference_db.has_reference(tx_hash, utxo_index)
     
-    def get_utxo_value(self, tx_in):
-        """Returns the amount of satoshi from a unspent transaction output
-
-        Keyword arguments:
-        tx_in -- it is the transaction input which holds a referece to
-        a unspent transaction output this wallet can spend
-        """
-        tx = self.tx_db.get_tx(tx_in.tx_hash)
-        utxo = tx.get_utxo(tx_in.utxo_index)
-        return utxo.get_value()
-
-    def get_utxos_value(self, tx_in_arr):
-        """Returns the total amount of satoshi from the references in the
-        transactions inputs
-
-        Keyword arguments:
-        tx_in_arr -- these are the transaction inputs which hold a referece to
-        a unspent transaction output this wallet can spend
-        """
-        value = 0
-        for tx_in in tx_in_arr:
-            value += self.get_utxo_value(tx_in)
-        return value
+    def unlock_utxo(self, tx_hash, utxo_index, unlock_script_path):
+        result = {"success": True, "err": ""}
+        try:
+            with open(unlock_script_path, 'r') as unlock_script_file:
+                if not self.available_utxo(tx_hash, utxo_index):
+                    raise Exception(f"{tx_hash}, {utxo_index}. {WalletErrorMssgs.SPENT_UTXO}")
+                unlock_script = unlock_script_file.read()
+                utxo = self.blockchain.get_utxo(tx_hash, utxo_index)
+                lock_script = utxo.lock_script
+                assembly_result = self.assembler.assemble(unlock_script+lock_script)
+                if assembly_result["success"]:
+                    self.btcvm.reset()
+                    processing_result = self.btcvm.process(assembly_result["binary"])
+                    if processing_result["success"]:
+                        if self.btcvm.on_valid_state():
+                            result["script"] = unlock_script
+                            return result
+                        else:
+                            raise Exception(WalletErrorMssgs.UNLOCK_SCRIPT)
+                    else:
+                        raise Exception(processing_result["err"])
+                else:
+                    raise Exception(assembly_result["err"])
+        except Exception as e:
+            result["success"] = False
+            result["err"] = f"{e}"
+        return result
     
-    def get_balance(self):
-        """Returns the total amount of satoshi this wallets owns
-
-        This method is not mean to be used inside the class but
-        for external consultation purposes
-        
-        """
-        utxo_references = self.get_available_utxo_references()
-        tx_in_arr = self.create_tx_inputs(utxo_references)
-        return self.get_utxos_value(tx_in_arr)
+    def create_tx_input(self, tx_hash, utxo_index, unlock_script_path):
+        unlock_result = self.unlock_utxo(tx_hash, utxo_index, unlock_script_path)
+        if unlock_result["success"]:
+            self.tx_inputs.append(TXIn(tx_hash, utxo_index, unlock_result["script"]))
+        return unlock_result
     
-    def get_available_utxo_values(self):
-        """Returns the values greatet than 0 
-        of each unspent transaction this wallet can use
-
-        This method is not mean to be used inside the class but
-        for external consultation purposes     
-        """
-        utxo_references = self.get_available_utxo_references()
-        tx_in_arr = self.create_tx_inputs(utxo_references)
-        values = []
-        for tx_in in tx_in_arr:
-            value = self.get_utxo_value(tx_in)
-            if value > 0:
-                values.append(self.get_utxo_value(tx_in))
-        return values
-
-    def get_tx_inputs_to_cover_cost(self, tx_in_arr, cost):
-        """Returns the transaction inputs which can be used to pay for a cost
-
-        The algorithm excludes unspent transactions outputs with value 0 and 
-        tries to use, few unspent transactions outputs and the
-        ones which have the least value to cover the cost 
-
-        Keyword arguments:
-        tx_in_arr -- these are the transaction inputs which hold a referece to
-        a unspent transaction output this wallet can spend
-        cost -- it is the amount of satoshi which will be spent on a transaction
-        """
-        tx_in_arr_fil = list(filter(lambda tx_in: self.get_utxo_value(tx_in) > 0, tx_in_arr))
-        tx_inputs_permutations = list(permutations(tx_in_arr_fil))
-        min_tx_inputs = tx_in_arr_fil[:]
-        min_value = sys.maxsize
-        for tx_inputs in tx_inputs_permutations:
-            index = 1
-            value = 0
-            for tx_in in tx_inputs:
-                value+=self.get_utxo_value(tx_in)
-                if cost - value <= 0:
-                    break
-                index += 1
-            choosen_tx_inputs = tx_inputs[:index]
-            if len(choosen_tx_inputs) < len(min_tx_inputs) and value < min_value:
-                min_tx_inputs = choosen_tx_inputs
-                min_value = value
-        return min_tx_inputs
+    def remove_tx_input(self, index):
+        result = {"success": True, "err": ""}
+        if len(self.tx_inputs) > 0 and len(self.tx_inputs) >= index:
+            self.tx_inputs.remove(self.tx_inputs[index-1])
+            return result
+        result["success"] = False
+        result["err"] = f"The input does not exist at {index}"
+        return result
     
-    def update_tx_db(self, tx_hash, tx):
-        """Updates the state of the current transaction data base
-        by adding a new valid transaction into it
-        
-        Keyword arguments:
-        tx_hash -- it is the hash of the valid pending transaction
-        tx -- it is a valid pending transaction
-        """
-        self.tx_db.add_tx(tx_hash, tx)
+    def get_tx_inputs(self):
+        return self.tx_inputs
 
-    def update_utxo_reference_db(self, tx_hash, tx):
-        """Updates the state of the current unspent transaction
-        out references database by adding a new valid transaction into it
-        
-        Keyword arguments:
-        tx_hash -- it is the hash of the valid pending transaction
-        tx -- it is a valid pending transaction
-        """
-        self.utxo_reference_db.remove_utxos_reference(tx.get_tx_in_arr())
-        self.utxo_reference_db.add_utxo_references(tx_hash, tx.get_utxo_arr())
+    def get_available_utxos(self):
+        """Returns the unspent transaction outputs this wallet is going to spend"""
+        utxos = []
+        for tx_in in self.tx_inputs:
+            utxo = self.blockchain.get_utxo(tx_in.tx_hash, tx_in.utxo_index)
+            utxos.append(utxo)
+        return utxos
+    
+    def create_utxo(self, value, lock_script_path):
+        result = {"success": True, "err": ""}
+        try:
+            with open(lock_script_path, 'r') as lock_script_file:
+                lock_script = lock_script_file.read()
+                assembly_result = self.assembler.assemble(lock_script)
+                if assembly_result["success"]:
+                    self.utxos.append(UTXO(value, lock_script))
+                else:
+                    raise Exception(assembly_result["err"])                        
+        except Exception as e:
+            result["success"] = False
+            result["err"] = f"{e}"
+        return result
 
-    def create_tx(self, to, amount, change_target, fee=0):
-        """Adds a transaction to the current version of the databases in this wallet
-        and returns it
+    def remove_utxo(self, index):
+        result = {"success": True, "err": ""}
+        if len(self.utxos) > 0 and len(self.utxos) >= index:
+            self.utxos.remove(self.utxos[index-1])
+            return result
+        result["success"] = False
+        result["err"] = f"The utxo does not exist at {index}"
+        return result
+    
+    def get_utxos(self):
+        return self.utxos
+    
+    def get_utxos_total_value(self, utxos):
+        """
+        """
+        total_value = 0
+        for utxo in utxos:
+            total_value += utxo.value
+        return total_value
+
+    def create_tx(self, system_fee):
+        """Returns a transaction which used the tx_inputs and utxos created by the wallet
+
+        The total value that will be spent as input has to be greater or equal than the total
+        value that will be outputed.
+
+        Be careful, the fee that will be payed to the miner will be
+        total_value_in - total_value_out = fee
+
+        The list of tx inputs and utxos will be cleared after creating the transaction
 
         Keyword arguments:
-        to -- it is the public key of the beneficiary wallet
-        amount -- it is the amount of satoshi that will be transfered
-        change_target -- it is the public key of the wallet which would get 
-        the change
-        fee -- it is the amount of satoshi this transaction is going to pay to a miner
+        system_fee -- it is an amount of satohsi that is payed for using the system
+        at the current time which will be payed to a miner
         """
-        cost = amount + fee
-        utxo_references = self.get_available_utxo_references()
-        tx_in_arr = self.create_tx_inputs(utxo_references)
-        balance = self.get_utxos_value(tx_in_arr)
-        tx = None
-        if balance >= cost:
-            tx_in_arr = self.get_tx_inputs_to_cover_cost(tx_in_arr, cost)
-            utxo_arr = []
-            change_val = self.get_utxos_value(tx_in_arr) - cost
-            utxo_arr.append(UTXO(change_val, change_target))
-            utxo_arr.append(UTXO(amount, to))
-            tx = TX(self.public_key, tx_in_arr, utxo_arr)
-            tx_hash = hashlib.sha256(pickle.dumps(tx)).hexdigest()
-            self.update_tx_db(tx_hash, tx)
-            self.update_utxo_reference_db(tx_hash, tx)
-        return tx
+        result = {"success": True, "err": "", "tx": None}
+        total_value_in = self.get_utxos_total_value(self.get_available_utxos())
+        total_value_out = self.get_utxos_total_value(self.utxos)
+        if total_value_in < total_value_out:
+            result["success"] = False
+            result["err"] = f"The transaction could not be created the inputs {satoshi_to_btc(total_value_in)} BTC cannot cover the outputs {satoshi_to_btc(total_value_out)} BTC"
+        fee = total_value_in-total_value_out
+        if fee < system_fee:
+            result["success"] = False
+            result["err"] = f"The transactions is paying {satoshi_to_btc(fee)} BTC instead of {satoshi_to_btc(system_fee)} BTC"
+        result["tx"] = TX(self.tx_inputs.copy(), self.utxos.copy())
+        self.tx_inputs.clear()
+        self.utxos.clear()
+        return result
