@@ -60,9 +60,23 @@ class Wallet:
         self.utxo_reference_db.set_references(utxo_references)
     
     def available_utxo(self, tx_hash, utxo_index):
+        """Gets the utxos that the user unlocked
+        with the transaction input
+        
+        Keyword arguments:
+        tx_hash -- it is the hash of a transaction that can be found on the utxo reference db
+        utxo_index -- it os the index of the utxo in the utxo array inside the transaction
+        """
         return self.utxo_reference_db.has_reference(tx_hash, utxo_index)
     
     def unlock_utxo(self, tx_hash, utxo_index, unlock_script_path):
+        """Checks if the given script can unlock a utxo
+
+        Keyword arguments:
+        tx_hash -- it is the hash of a transaction that can be found on the utxo reference db.
+        utxo_index -- it os the index of the utxo in the utxo array inside the transaction.
+        unlock_script_path -- it is the script that will be used to unlock the utxo.
+        """
         result = {"success": True, "err": ""}
         try:
             with open(unlock_script_path, 'r') as unlock_script_file:
@@ -91,12 +105,25 @@ class Wallet:
         return result
     
     def create_tx_input(self, tx_hash, utxo_index, unlock_script_path):
+        """Creates a transaction input that will be used to spend the utxo
+
+        Keyword arguments:
+        tx_hash -- it is the hash of a transaction that can be found on the utxo reference db.
+        utxo_index -- it is the index of the utxo in the utxo array inside the transaction.
+        unlock_script_path -- it is the path to the script that will be used
+        to unlock the utxo.
+        """
         unlock_result = self.unlock_utxo(tx_hash, utxo_index, unlock_script_path)
         if unlock_result["success"]:
             self.tx_inputs.append(TXIn(tx_hash, utxo_index, unlock_result["script"]))
         return unlock_result
     
     def remove_tx_input(self, index):
+        """Removes a previously created transaction input
+
+        Keyword arguments:
+        index -- it is the index of the tx input
+        """
         result = {"success": True, "err": ""}
         if len(self.tx_inputs) > 0 and len(self.tx_inputs) >= index:
             self.tx_inputs.remove(self.tx_inputs[index-1])
@@ -106,6 +133,7 @@ class Wallet:
         return result
     
     def get_tx_inputs(self):
+        """Gets the tx inputs which have been created until now."""
         return self.tx_inputs
 
     def get_available_utxos(self):
@@ -117,6 +145,14 @@ class Wallet:
         return utxos
     
     def create_utxo(self, value, lock_script_path):
+        """Creates a unspent transaction  output that could be spend by whoever has the
+        the script that solves the unlock script
+
+        Keyword arguments:
+        value -- it is the amount of satoshi that the utxo is worth.
+        lock_script_path -- it is the path to the script that will be used
+        to lock the utxo.
+        """
         result = {"success": True, "err": ""}
         try:
             with open(lock_script_path, 'r') as lock_script_file:
@@ -132,6 +168,11 @@ class Wallet:
         return result
 
     def remove_utxo(self, index):
+        """Removes a previously created utxo
+
+        Keyword arguments:
+        index -- it is the index of the utxo
+        """
         result = {"success": True, "err": ""}
         if len(self.utxos) > 0 and len(self.utxos) >= index:
             self.utxos.remove(self.utxos[index-1])
@@ -141,10 +182,14 @@ class Wallet:
         return result
     
     def get_utxos(self):
+        """Gets the utxos created until now."""
         return self.utxos
     
     def get_utxos_total_value(self, utxos):
-        """
+        """Gets the total amount of satoshi that an array of utxos is worth
+
+        Keyword arguments:
+        utxos -- array of unspent transaction outputs
         """
         total_value = 0
         for utxo in utxos:
@@ -172,10 +217,12 @@ class Wallet:
         if total_value_in < total_value_out:
             result["success"] = False
             result["err"] = f"The transaction could not be created the inputs {satoshi_to_btc(total_value_in)} BTC cannot cover the outputs {satoshi_to_btc(total_value_out)} BTC"
+            return result
         fee = total_value_in-total_value_out
         if fee < system_fee:
             result["success"] = False
             result["err"] = f"The transactions is paying {satoshi_to_btc(fee)} BTC instead of {satoshi_to_btc(system_fee)} BTC"
+            return result
         result["tx"] = TX(self.tx_inputs.copy(), self.utxos.copy())
         self.tx_inputs.clear()
         self.utxos.clear()
