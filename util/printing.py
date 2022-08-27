@@ -17,18 +17,20 @@ def print_tx_inputs(tx_inputs):
         print(" "*4, f"UTXO Index: {tx_input.utxo_index}")
         print(" "*4, f"Unlock Script: {tx_input.unlock_script}")
         index +=1
+
+def print_utxos(utxos):
+    index = 1
+    for utxo in utxos:
+        print(f"{index}.Unspent Transaction Output:")
+        print(" "*4, f"Value: {satoshi_to_btc(utxo.value)} BTC")
+        print(" "*4, f"Lock Script: {utxo.lock_script}")
+        index += 1
     
 def print_tx_input_index_utxo_value(utxos):
     index = 1
     for utxo in utxos:
         print(f"The UTXO unlocked by the tx input at {index} is worth {satoshi_to_btc(utxo.value)} BTC")
         index +=1
-
-def print_utxos_value(utxos):
-    index = 1
-    for utxo in utxos:
-        print(f"{index}.Unspent Transaction Output:")
-        print(" "*4, f"Vaue: {satoshi_to_btc(utxo.value)} BTC")
 
 def print_tx(tx):
     """Prints a trasaction data using a format
@@ -47,7 +49,7 @@ def print_tx(tx):
     index = 1
     for utxo in tx.get_utxos():
         print(f"{index}.Unspent Transaction Output:")
-        print(" "*4, f"Vaue: {satoshi_to_btc(utxo.value)} BTC")
+        print(" "*4, f"Value: {satoshi_to_btc(utxo.value)} BTC")
         print(" "*4, f"Lock Script: {utxo.lock_script}")
         index += 1
     print("="*50)
