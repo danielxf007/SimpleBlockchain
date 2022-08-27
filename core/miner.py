@@ -114,7 +114,7 @@ class Miner:
             tx_input = tx_inputs[i]
             if self.utxo_reference_db.has_reference(tx_input.tx_hash, tx_input.utxo_index):
                 utxo = self.blockchain.get_utxo(tx_input.tx_hash, tx_input.utxo_index)
-                script = tx_input.unlock_script + utxo.lock_script
+                script = f"{tx_input.unlock_script}  {utxo.lock_script}"
                 assembly_result = self.assembler.assemble(script)
                 if assembly_result["success"]:
                     self.btcvm.reset()
@@ -136,6 +136,10 @@ class Miner:
             for j in range(i):
                 tx_input = tx_inputs[j]
                 self.utxo_reference_db.add_reference(tx_input.tx_hash, tx_input.utxo_index)
+        else:
+            tx_hash = hashlib.sha256(pickle.dumps(tx)).hexdigest()
+            for utxo_index in range(len(tx.get_utxos())):
+                self.utxo_reference_db.add_reference(tx_hash, utxo_index)
         return valid
 
     def has_enough_zeros(self, hashed_header, difficulty):
