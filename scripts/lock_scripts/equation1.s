@@ -1,0 +1,1 @@
+25 OP_ADD -65 OP_NUMEQUAL # checks if -90 + 25 = -65
