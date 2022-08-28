@@ -12,6 +12,11 @@ class Blockchain:
             return self.blocks[height]
         return None
     
+    def get_last_block(self):
+        if self.blocks:
+            return self.blocks[len(self.blocks)-1]
+        return None
+    
     def get_height(self):
         return len(self.blocks)-1
     
@@ -22,11 +27,14 @@ class Blockchain:
         return self.blocks
         
     def get_previous_hash(self):
-        return self.previous_hash
+        if not self.blocks:
+            previous_hash = hashlib.sha256('0'.encode()).hexdigest()
+        else:
+            previous_hash = hashlib.sha256(pickle.dumps(self.get_last_block())).hexdigest()
+        return previous_hash
 
     def add(self, block):
         self.blocks.append(block)
-        self.previous_hash = hashlib.sha256(pickle.dumps(block)).hexdigest()
     
     def get_transaction(self, req_tx_hash):
         for block in self.blocks:
