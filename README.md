@@ -2,6 +2,7 @@
 
 This program is a simple simulation of a blockchain which focuses on the creation of transactions.
 
+For more information about bitcoin transactions visit: https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch06.asciidoc
 
 ## Aplication Commands:
 
