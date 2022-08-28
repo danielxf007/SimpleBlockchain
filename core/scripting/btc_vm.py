@@ -228,11 +228,8 @@ class BTCVM:
         try:
             while self.pc < len(self.program_rom):
                 op_code = self.program_rom[self.pc]
-                print(f"OP CODE: {op_code}")
-                print(f"Before: {self.stack.get_state()}")
                 func = self.function_vector[op_code]
                 func()
-                print(f"After: {self.stack.get_state()}")
             result["success"] = True
         except Exception as e:
             result["success"] = False
