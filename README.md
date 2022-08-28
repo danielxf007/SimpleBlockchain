@@ -1,96 +1,71 @@
 # Simple Blockchain
 
-This program is a simple simulation of a blockchain, you can interact with it using console commands
+This program is a simple simulation of a blockchain which focuses on the creation of transactions.
 
-## Notes:
 
-If you want to make transaction, then you must initialize the system
+## Aplication Commands:
 
-Do not delete the file name.txt in data, it is used to create random wallets
+![alt text](./images/app_commands.png)
 
-The miner decides randomly how many transactions they want to approve
+## Wallet Commands:
 
-The transactions that were not approved are deleted and never happened
-
-The transaction fee changes everytime a block is added to the chain
-
-Run the program using **python3 main.py**
-
-You can see the commands anytime using the command: **--help**
-
-## Commands:
-
-![alt text](./images/commands.png)
-
-## System initialization
-
-![alt text](./images/command_init.png)
+![alt text](./images/wallet_commands.png)
 
 ## Genesis Block:
-![alt text](./images/command_block.png)
 
-## Wallet creation
+![alt text](./images/genesis_block.png)
 
-![alt text](./images/command_wallet.png)
+Satoshi initializes the system by mining the genesis block.
 
-![alt text](./images/command_wallet_r.png)
+### Notes:
 
-## Checking a wallet's balance
+Block Fields:
 
-![alt text](./images/command_wallet_balance.png)
+Author: is the public key of the user who mined the block.
+Previous Hash: is the hash of the previous block, on this case is the hash of 0
+Root Hash: is the root of a merkle tree which was created with the transactions
+Height: is the height of the blockchain where the block can be found
+Difficulty: is the number of binary zeroes used for the proof of work
+Nonce: is the number that satifies the proof of work
+Date: is a timestamp which indicates when the block was mined
+Transactions: is a field with all the transactions that were validated
 
-## Checking a wallet's utxos
+The first transaction is known as coin base a special transaction used to create btc and
+collect transaction fees, the system has a virtual machine which is able to process btc
+scripts, for the moment only addition, equality and signature checking are supported.
 
-![alt text](./images/command_wallet_utxo.png)
+The virtual machine can only process signed integers of 64 bits.
 
-### Note:
+OP_CHECKSIG does not validate signatures yet, it's enought to provide a unlock_script with
+whatever input and it gets validated.
 
-If you want to know more about utxos visit: https://github.com/bitcoinbook/bitcoinbook/blob/develop/ch06.asciidoc
+Each Miner uses the script P2K to lock the coin base transaction.
 
-## Getting the number of wallets created
+The private and publick key are different each time this system becomes a process.
 
-![alt text](./images/command_get_n_wallets.png)
+## Example
 
-## Listing the wallets
+![alt text](./images/first_step.png)
 
-![alt text](./images/command_list_wallets.png)
+download_lock_scripts gets the locking script of all the utxos that can be spent, be careful
+with the path.
 
-## Miner creation
+![alt text](./images/lock_script_format.png)
 
-![alt text](./images/command_miner.png)
+Each lock script gives you the hash of the trasanction that has the utxo and the index where
+the utxo is found, it gives how much btc the utxo is worth and the script that has to be solved.
 
-![alt text](./images/command_miner_r.png)
+![alt text](./images/second_step.png)
 
-## Listing the miners
+A normal transaction needs transaction inputs and unspent transaction outputs to be created,
+so the user has to define which utxos are going to be spent using the tx inputs, the input needs the tx hash, the utxo index and the unlock script.
 
-![alt text](./images/command_list_miners.png)
+![alt text](./images/third_step.png)
 
-## Checking the transaction fee
+The system imposes a fee that users must pay for using it, the fee your transaction is paying is calculated as fee = total_value_inputs - total_value_outputs, so be careful of paying more fees than necessary.
 
-![alt text](./images/command_fee.png)
+Each utxo has a value and a lock script that needs to be solved if someone wants to spend the utxo.
 
-## Transaction making
+Finally if the inputs and outputs are as you want them, then you can create the transaction.
 
-![alt text](./images/command_transfer.png)
-
-### Note:
-
-The arguments are: the user name of the one making the transaction, the beneficiary, the amount of btc and a third user that will get the change of the transaction (it can be any user who has a wallet)
-
-![alt text](./images/command_transfer_r.png)
-
-## Mining a block
-
-![alt text](./images/command_mining.png)
-
-## Displaying a block's data
-
-![alt text](./images/command_block1.png)
-
-### Note:
-
-The difficulty is the number of binary zeroes that must be found in a hash digest
-
-## Getting the chain's history
-
-![alt text](./images/command_history.png)
+![alt text](./images/fourth_step.png)
