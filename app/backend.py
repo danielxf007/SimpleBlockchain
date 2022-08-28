@@ -57,7 +57,8 @@ class Backend:
                 tx_hash = reference["tx_hash"]
                 utxo_index = reference["utxo_index"]
                 utxo = self.blockchain.get_utxo(tx_hash, utxo_index)
-                lock_script = f"# TX Hash: {tx_hash}\n# UTXO Index: {utxo_index}\n# Value: {utxo.value}\n# Script\n"
+                value = f"{satoshi_to_btc(utxo.value)} BTC"
+                lock_script = f"# TX Hash: {tx_hash}\n# UTXO Index: {utxo_index}\n# Value: {value}\n# Script\n"
                 lock_script += utxo.lock_script
                 lock_script_file_path = dir_path + generic_name + str(index) + extension
                 with open(lock_script_file_path, 'w') as lock_file:
